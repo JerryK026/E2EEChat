@@ -1,1 +1,4 @@
 node_modules
+package-lock.json
+# 원래 key는 git에 올리면 안됨
+# .env
