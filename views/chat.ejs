@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Chatting</title>
+    <script src="http://code.jquery.com/jquery-2.1.4.min.js"></script>
+    <link href="/stylesheets/style.css" rel="stylesheet" />
+    <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+    <script>
+      const userName = prompt("이름이 무엇입니까?");
+      const endPoint = prompt("상대방의 이름은 무엇입니까?");
+
+      axios.defaults.baseURL = "http://localhost:3000"; //서버주소
+
+      axios.defaults.headers.post["Content-Type"] =
+        "application/json;charset=utf-8";
+
+      axios.defaults.headers.post["Access-Control-Allow-Origin"] = "*";
+      $(function () {
+        axios.post("setUser/", {
+          userName: userName,
+          endPoint: endPoint,
+        });
+
+        $("#connection").on("click", () => {
+          axios.get("connection/").then(alert("접속 완료"));
+        });
+
+        $("#btns").on("click", function () {
+          const msg = $("#msinput").val();
+          $("#messages").append($('<p class="talk me">').text(msg));
+          // 전송 버튼 눌렀을 때
+          axios
+            .post("send/", {
+              msg: msg,
+            })
+            .then((res) => {
+              console.log(res);
+              $("#messages").append($('<p class="talk other">').text(res.msg));
+            });
+          $("#msinput").val("");
+        });
+
+        /*socket.on("Mmessage", (msg) => {
+          $("#messages").append($('<p class="talk me">').text(msg));
+        });
+        socket.on("Omessage", (msg) => {
+          $("#messages").append($('<p class="talk other">').text(msg));
+        });
+
+        $("#msinput").keyup(function (key) {
+          if (key.keyCode == 13) {
+            // 엔터 눌렀을 때
+
+            socket.emit("message", $("#msinput").val());
+            $("#msinput").val("");
+          }
+        });
+
+        $("#btns").on("click", function () {
+          // 전송 버튼 눌렀을 때
+          socket.emit("message", $("#msinput").val());
+          $("#msinput").val("");
+        }); */
+      });
+    </script>
+  </head>
+
+  <body>
+    <div class="background">
+      <div class="msgbox" id="messages"></div>
+      <input id="msinput" class="msg" type="text" />
+      <button id="btns" class="send" type="button">전송</button>
+      <button id="connection" class="send" type="button">접속</button>
+    </div>
+  </body>
+</html>
