@@ -1,77 +1,88 @@
 const net = require("net");
-const readline = require("readline");
-const rl = readline.createInterface({
-  input: process.stdin,
-  output: process.stdout,
-});
+const express = require("express");
+const app = express();
+const cors = require("cors");
+const crypto = require("crypto");
 
+const keyGenerator = require("./keyGenerator");
 const { base64decode, base64encode } = require("./encoder");
-const makeSessionKey = require("./makeKeyMsg");
 const makeMsg = require("./makeMsg");
-const makeKey = require("./makeSessionKey");
+const makeKeyMsg = require("./makeKeyMsg");
+const encryption = require("./encryption");
+
+const publicKey = keyGenerator.getPublicKey("base64");
+const privateKey = keyGenerator.getPrivateKey("base64");
 
 let userName = "";
-const endPoint = "";
+let endPoint = "";
 let endPointPublicKey = "";
+let symmetricKey = "WhnmchdhP6aS28bbp6WXElQacdJK59cGwlTDY0FKmKU=";
+let encryptedSKey = "";
+let endPointSymmetricKey = "";
+let endPointEncryptedSKey = "";
+let iv = "";
+
+app.use(express.json());
+app.use(cors());
+app.use(express.static("public"));
+
+console.log("publicKey : " + publicKey);
+console.log("privateKey : " + privateKey);
 
 console.log("loading...");
 
-const setUserInformation = (f) => {
-  userName = "";
-  rl.question("set user name : ", (line) => {
-    userName = line;
-    rl.close();
-    console.log("userName : " + userName);
-    f();
-  });
-};
+app.set("view engine", "ejs");
+app.set("views", "./views");
 
-const setEndPointInformation = (f) => {
-  rl.question("set end user name : ", (line) => {
-    endPoint = line;
-    rl.close();
-    console.log("end user name : " + endPoint);
-    f();
-  });
-};
-
-const client = net.connect({ port: 8080, host: "homework.islab.work" }, () => {
-  setUserInformation(() => {
-    client.write(`3EPROTO CONNECT\nCredential: ${userName}`);
-  });
-  console.log(userName);
-
-  // new Promise(() => {
-  //   rl.question("set user name : ", function (line) {
-  //     userName = line;
-  //     rl.close();
-  //   });
-  // })
-  //   .then(() => {
-  //     rl.question("set user endPoint : ", function (line) {
-  //       endPoint = line;
-  //       rl.close();
-  //     });
-  //   })
-  //   .then(() => {
-  //     // connection
-  //     client.write(`3EPROTO CONNECT\nCredential: ${userName}`);
-  //   });
+app.get("/", (req, res) => {
+  res.render("chat");
 });
+
+app.post("/setUser", (req, res) => {
+  userName = req.body.userName;
+  endPoint = req.body.endPoint;
+  console.log("userName : " + userName);
+  console.log("endPoint : " + endPoint);
+  client.write(`3EPROTO CONNECT\nCredential: ${userName}`);
+});
+
+app.get("/connection", (req, res) => {
+  const keyMsg = makeKeyMsg(userName, endPoint, publicKey);
+  console.log(keyMsg);
+  client.write(keyMsg);
+});
+
+app.post("/send", (req, res) => {});
+
+const client = net.connect(
+  { port: 8080, host: "homework.islab.work" },
+  () => {}
+);
 
 client.on("data", (data) => {
   const msg = base64decode(data);
   console.log(msg);
 
-  // 서버와 연결 성공한 경우 키를 교환한다.
-  if (msg.split("\n")[0] == "3EPROTO ACCEPT") {
-    console.log("set end point name : ");
-    // rl.on("line", (line) => (userName = line));
-    setEndPointInformation(() => {
-      // const keyMsg = makeSessionKey(userName, endPoint);
-      // console.log(keyMsg);
-      // client.write(keyMsg);
-    });
+  // 키를 전달받은 경우 키를 저장한다.
+  if (msg.split("\n")[0] == "3EPROTO KEYXCHG") {
+    const keyMsg = msg.split("\n")[6].trim();
+
+    // 1번째 키를 받은 경우, 공개키다
+    if (endPointPublicKey == "") {
+      console.log("get public key : \n" + keyMsg);
+      endPointPublicKey = keyMsg;
+      // encryptedSKey = encryption.cipherKey(symmetricKey, endPointPublicKey);
+      client.write(`3EPROTO KEYXCHG\nAlgo: AES-256-CBC\nFrom: CNU-InfoSecUser\nTo: CNU-InfoSecUser2\n\n\
+      ${encryptedSKey}\nf8uA/XqfIIpdnED+yFj0+w==\n    `);
+    }
+    // 2번째 키를 받은 경우, 암호화된 대칭키다.
+    else {
+      iv = msg.split("\n")[7].trim();
+      endPointEncryptedSKey = keyMsg;
+      // endPointSymmetricKey = encryption.decipherKey(symmetricKey, publicKey);
+      console.log("get symmetric key : \n" + keyMsg);
+      console.log("get iv : \n" + iv);
+    }
   }
 
   // 접속 실패했을 경우. 대부분 credential이 중복된 경우 발생한다.
@@ -121,4 +132,8 @@ client.on("data", (data) => {
     client.on("end", () => console.log("Client disconnected"));
     process.exit();
   }
+});
+
+app.listen(3000, () => {
+  console.log(`Server running at http://localhost:3000`);
 });
