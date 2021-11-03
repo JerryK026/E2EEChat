@@ -1,39 +1,37 @@
 const crypto = require("crypto");
 
-// const cipher = () => {
-//   crypto.createCipher("aes-256-cbc", "key");
-//   let result = cipher.update("pass", "utf8", "base64");
-//   result += cipher.final("base64");
-//   console.log(`Encryption ${pass} => \t ${result}`);
-//   return result;
-// };
-
-// const decipher = () => {
-//   crypto.createDecipher("aes-256-cbc", "key");
-//   let result2 = decipher.update(result, "base64", "utf8");
-//   result2 += decipher.final("utf8");
-//   console.log(`Decryption ${result} => \t ${pass}`);
-//   return result2;
-// };
-
 module.exports = {
-  cipherText: (skey, pkey) => {
-    crypto.createCipher("aes-256-cbc", skey);
-    let result = cipher.update(pkey, "utf8", "base64");
+  cipherText: (skey, msg, iv) => {
+    const skeyBuffer = Buffer.from(skey, "utf-8");
+    const cipher = crypto.createCipheriv("aes-256-cbc", skeyBuffer, iv);
+    let result = cipher.update(msg, "utf8", "base64");
     result += cipher.final("base64");
-    console.log(`Encryption ${pass} => \t ${result}`);
     return result;
   },
-  cipherKey: (skey, pkey) => {
-    const pem =
-      "----- BEGIN CERTIFICATE -----\n" + +"\n-----END CERTIFICATE-----";
-    crypto.publicEncrypt(pem);
+  cipherSymmetricKey: (skey, pkey) => {
+    const enc = crypto.publicEncrypt(pkey, Buffer.from(skey));
+    const encryptedSKey = enc.toString("base64");
+    return encryptedSKey;
   },
-  decipherKey: (skey, pkey) => {
-    crypto.createDecipher("aes-256-cbc", skey);
-    let result = decipher.update(pkey, "base64", "utf8");
-    result += decipher.final("utf8");
-    console.log(`Decryption ${result} => \t ${pass}`);
-    return result;
+  decipherSymmetricKey: (eskey, prkey) => {
+    const privateKey = crypto.createPrivateKey({
+      key: prkey,
+      format: "pem",
+      passphrase: "",
+    });
+
+    const symmetricKey = crypto.privateDecrypt(
+      privateKey,
+      Buffer.from(eskey, "base64")
+    );
+    console.log("decrypted symmectirc key : " + symmetricKey.toString("utf-8"));
+    return symmetricKey.toString("utf8");
+  },
+  decipherText: (skey, iv, emsg) => {
+    const decipher = crypto.createDecipheriv("aes-256-cbc", skey, iv);
+    let msg = decipher.update(emsg, "base64", "utf8");
+    msg += decipher.final("utf8");
+    console.log("decrypted msg : " + msg);
+    return msg;
   },
 };
